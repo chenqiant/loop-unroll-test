@@ -1,37 +1,20 @@
-/* Triple loop; unroll_count(4) on j and s. loop-fusion-prep adds readnone
-   to BODY/BODY2 declarations so loop-fusion can fuse (use -loop-fusion-prep-ignore-calls=BODY,BODY2). */
+/* C(m,k) = A(m,n) * B(n,k). Triple loop; unroll by flags on j and s (assume k,n % 4 == 0). */
+#include <stdint.h>
 
-float x[32][256];
-float h[64][256];
-float y[32][64];
-
-float acc[32][64];
-
-static inline __attribute__((always_inline)) void BODY(int s, int j, int i)
+/* Matrix multiply: C(m,k) = A(m,n) * B(n,k), c(i,j) = sum_s a(i,s)*b(s,j). */
+int dspm_mult_s16_ansi(const int16_t *A, const int16_t *B, int16_t *C,
+                       int m, int n, int k, int shift)
 {
-    acc[i][j] += x[i][s] * h[j][s];
-}
-
-static inline __attribute__((always_inline)) void BODY2(int j, int i)
-{
-    y[i][j] = acc[i][j];
-    acc[i][j] = 0;
-}
-  
-
-void loop_original(int m, int k, int n)
-{
-    __builtin_assume(k % 4 == 0);
-    __builtin_assume(n % 4 == 0);
+    int final_shift = shift;
 
     for (int i = 0; i < m; i++) {
-        #pragma clang loop unroll_count(4)
         for (int j = 0; j < k; j++) {
-            #pragma clang loop unroll_count(4)
+            long long acc = 0x7fff >> shift;
             for (int s = 0; s < n; s++) {
-                BODY(s, j, i);
+                acc += (int32_t)A[i * n + s] * (int32_t)B[s * k + j];
             }
-            BODY2(j, i);
+            C[i * k + j] = (int16_t)(acc >> final_shift);
         }
     }
+    return 0;
 }

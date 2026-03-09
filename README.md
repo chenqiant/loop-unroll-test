@@ -1,4 +1,6 @@
 # loop-unroll-test
 
-- **`test_progama_assume.c`** — Original C version (with `__builtin_assume` for k%4==0, n%4==0).
-- **`loop_unroll_demo.c`** — Manually unrolled C version (4×4 j/s unroll, equivalent to the optimized loop structure).
+Int16 matrix multiply **C(m,k) = A(m,n) * B(n,k)**; loop unroll only (no other optimizations).
+
+- **`test_progama_assume.c`** — Original triple loop `dspm_mult_s16_ansi` (with `__builtin_assume` k,n % 4 == 0). Unroll via compiler flags; see `run_2.sh`.
+- **`loop_unroll_demo.c`** — Manually unrolled `dspm_mult_s16_ansi_unrolled` (j and s unrolled by 4).

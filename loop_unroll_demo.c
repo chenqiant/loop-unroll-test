@@ -1,55 +1,39 @@
-/*
- * Two versions of the same triple-nested loop:
- * - loop_original: standard i, j, s loops
- * - loop_unrolled: j and s unrolled by 4 (assumes k, n divisible by 4)
- *
- * BODY(s, j, i) and BODY2(j, i) are declared only; link with real impl if needed.
- */
+/* Same as dspm_mult_s16_ansi but with j and s unrolled by 4 (manual unroll). */
+#include <stdint.h>
 
- float x[32][256];
- float h[64][256];
- float y[32][64];
- 
- float acc[32][64];
- 
- static inline __attribute__((always_inline)) void BODY(int s, int j, int i)
- {
-     acc[i][j] += x[i][s] * h[j][s];
- }
- 
- static inline __attribute__((always_inline)) void BODY2(int j, int i)
- {
-     y[i][j] = acc[i][j];
-     acc[i][j] = 0;
- }
-
-/* Unrolled: j and s by 4. Same semantics when k and n are multiples of 4. */
-void loop_unrolled(int m, int k, int n)
+int dspm_mult_s16_ansi_unrolled(const int16_t *A, const int16_t *B, int16_t *C,
+                                int m, int n, int k, int shift)
 {
+    int final_shift = shift;
     for (int i = 0; i < m; i++) {
         for (int j = 0; j < k; j += 4) {
+            long long acc0 = 0x7fff >> shift;
+            long long acc1 = 0x7fff >> shift;
+            long long acc2 = 0x7fff >> shift;
+            long long acc3 = 0x7fff >> shift;
             for (int s = 0; s < n; s += 4) {
-                BODY(s + 0, j + 0, i);
-                BODY(s + 1, j + 0, i);
-                BODY(s + 2, j + 0, i);
-                BODY(s + 3, j + 0, i);
-                BODY(s + 0, j + 1, i);
-                BODY(s + 1, j + 1, i);
-                BODY(s + 2, j + 1, i);
-                BODY(s + 3, j + 1, i);
-                BODY(s + 0, j + 2, i);
-                BODY(s + 1, j + 2, i);
-                BODY(s + 2, j + 2, i);
-                BODY(s + 3, j + 2, i);
-                BODY(s + 0, j + 3, i);
-                BODY(s + 1, j + 3, i);
-                BODY(s + 2, j + 3, i);
-                BODY(s + 3, j + 3, i);
+                acc0 += (int32_t)A[i * n + (s + 0)] * (int32_t)B[(s + 0) * k + (j + 0)]
+                      + (int32_t)A[i * n + (s + 1)] * (int32_t)B[(s + 1) * k + (j + 0)]
+                      + (int32_t)A[i * n + (s + 2)] * (int32_t)B[(s + 2) * k + (j + 0)]
+                      + (int32_t)A[i * n + (s + 3)] * (int32_t)B[(s + 3) * k + (j + 0)];
+                acc1 += (int32_t)A[i * n + (s + 0)] * (int32_t)B[(s + 0) * k + (j + 1)]
+                      + (int32_t)A[i * n + (s + 1)] * (int32_t)B[(s + 1) * k + (j + 1)]
+                      + (int32_t)A[i * n + (s + 2)] * (int32_t)B[(s + 2) * k + (j + 1)]
+                      + (int32_t)A[i * n + (s + 3)] * (int32_t)B[(s + 3) * k + (j + 1)];
+                acc2 += (int32_t)A[i * n + (s + 0)] * (int32_t)B[(s + 0) * k + (j + 2)]
+                      + (int32_t)A[i * n + (s + 1)] * (int32_t)B[(s + 1) * k + (j + 2)]
+                      + (int32_t)A[i * n + (s + 2)] * (int32_t)B[(s + 2) * k + (j + 2)]
+                      + (int32_t)A[i * n + (s + 3)] * (int32_t)B[(s + 3) * k + (j + 2)];
+                acc3 += (int32_t)A[i * n + (s + 0)] * (int32_t)B[(s + 0) * k + (j + 3)]
+                      + (int32_t)A[i * n + (s + 1)] * (int32_t)B[(s + 1) * k + (j + 3)]
+                      + (int32_t)A[i * n + (s + 2)] * (int32_t)B[(s + 2) * k + (j + 3)]
+                      + (int32_t)A[i * n + (s + 3)] * (int32_t)B[(s + 3) * k + (j + 3)];
             }
-            BODY2(j + 0, i);
-            BODY2(j + 1, i);
-            BODY2(j + 2, i);
-            BODY2(j + 3, i);
+            C[i * k + (j + 0)] = (int16_t)(acc0 >> final_shift);
+            C[i * k + (j + 1)] = (int16_t)(acc1 >> final_shift);
+            C[i * k + (j + 2)] = (int16_t)(acc2 >> final_shift);
+            C[i * k + (j + 3)] = (int16_t)(acc3 >> final_shift);
         }
     }
+    return 0;
 }
