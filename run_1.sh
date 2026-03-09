@@ -1,0 +1,1 @@
+clang -O3 --target=riscv32-unknown-elf -S -emit-llvm loop_unroll_demo.c -o loop_unroll_demo.ll
